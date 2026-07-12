@@ -1,0 +1,48 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# SPA routes for client
+[[redirects]]
+  from = "/login"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/register"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/terrain/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/reservation/*"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/confirmation"
+  to = "/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/mes-reservations"
+  to = "/index.html"
+  status = 200
+
+# Admin SPA routes
+[[redirects]]
+  from = "/admin"
+  to = "/admin.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/*"
+  to = "/admin.html"
+  status = 200
