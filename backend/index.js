@@ -12,11 +12,14 @@ const paymentRoutes = require('./routes/payments');
 const adminRoutes = require('./routes/admin');
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+
+// On Vercel, /api/ prefix is stripped before reaching Express
+const isVercel = process.env.VERCEL === '1';
+const prefix = isVercel ? '' : '/api';
 
 // Security
-app.use(helmet());
-app.use(morgan('combined'));
+if (!isVercel) app.use(helmet());
+if (!isVercel) app.use(morgan('combined'));
 
 // Rate limiting
 const limiter = rateLimit({
@@ -24,13 +27,14 @@ const limiter = rateLimit({
   max: 200,
   message: { error: 'Trop de requetes, veuillez reessayer plus tard.' }
 });
-app.use('/api/', limiter);
+app.use(limiter);
 
 // CORS
 app.use(cors({
   origin: [
     process.env.FRONTEND_URL || 'http://localhost:5173',
-    'https://terrain-mali.netlify.app'
+    'https://terrain-mali.netlify.app',
+    /\.vercel\.app$/
   ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
@@ -42,14 +46,14 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/terrains', terrainRoutes);
-app.use('/api/reservations', reservationRoutes);
-app.use('/api/payments', paymentRoutes);
-app.use('/api/admin', adminRoutes);
+app.use(prefix + '/auth', authRoutes);
+app.use(prefix + '/terrains', terrainRoutes);
+app.use(prefix + '/reservations', reservationRoutes);
+app.use(prefix + '/payments', paymentRoutes);
+app.use(prefix + '/admin', adminRoutes);
 
 // Health check
-app.get('/api/health', (req, res) => {
+app.get(prefix + '/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
@@ -66,7 +70,8 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route non trouvee' });
 });
 
-if (process.env.VERCEL !== '1') {
+if (!isVercel) {
+  const PORT = process.env.PORT || 5000;
   app.listen(PORT, () => {
     console.log(`Terrain Mali API running on port ${PORT}`);
   });
