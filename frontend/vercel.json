@@ -1,13 +1,14 @@
 {
   "rewrites": [
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/admin.html", "destination": "/admin.html" },
+    { "source": "/admin/(.*)", "destination": "/admin.html" },
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/register", "destination": "/index.html" },
+    { "source": "/terrain/(.*)", "destination": "/index.html" },
+    { "source": "/reservation/(.*)", "destination": "/index.html" },
+    { "source": "/confirmation", "destination": "/index.html" },
+    { "source": "/mes-reservations", "destination": "/index.html" },
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "headers": [
-    {
-      "source": "/api/(.*)",
-      "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
-      ]
-    }
   ]
 }

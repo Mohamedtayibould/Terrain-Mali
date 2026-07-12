@@ -66,8 +66,10 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Route non trouvee' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Terrain Mali API running on port ${PORT}`);
-});
+if (process.env.VERCEL !== '1') {
+  app.listen(PORT, () => {
+    console.log(`Terrain Mali API running on port ${PORT}`);
+  });
+}
 
 module.exports = app;
