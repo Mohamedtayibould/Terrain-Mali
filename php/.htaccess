@@ -1,0 +1,14 @@
+RewriteEngine On
+
+# API routes
+RewriteRule ^api/(.*)$ api/router.php [QSA,L]
+
+# Admin SPA
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^admin/(.*)$ admin.html [L]
+
+# Client SPA
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.html [L]
