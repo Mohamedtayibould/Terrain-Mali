@@ -3,10 +3,15 @@
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
-$uri = $_SERVER['REQUEST_URI'];
-$uri = strtok($uri, '?');
-$parts = array_filter(explode('/', preg_replace('#^/api/reservations#', '', $uri)));
-$sub = $parts[0] ?? '';
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = rtrim($uri, '/');
+
+$sub = '';
+$id = '';
+if (preg_match('#/api/reservations/([^/]+)(?:/([^/]+))?#', $uri, $m)) {
+    $sub = $m[1] ?? '';
+    $id = $m[2] ?? '';
+}
 
 // GET /api/reservations/my
 if ($method === 'GET' && $sub === 'my') {
@@ -16,7 +21,7 @@ if ($method === 'GET' && $sub === 'my') {
 }
 
 // POST /api/reservations
-if ($method === 'POST' && ($sub === '' || $sub === null)) {
+if ($method === 'POST' && $sub === '') {
     $user = require_auth();
     $terrain_id = $body['terrain_id'] ?? '';
     $reservation_date = $body['reservation_date'] ?? '';
@@ -27,7 +32,6 @@ if ($method === 'POST' && ($sub === '' || $sub === null)) {
         respond(400, ['error' => 'Tous les champs sont requis']);
     }
 
-    // Check slot availability
     $isAvailable = supabase_rpc('check_slot_availability', [
         'p_terrain_id' => $terrain_id,
         'p_date' => $reservation_date,
@@ -39,20 +43,17 @@ if ($method === 'POST' && ($sub === '' || $sub === null)) {
         respond(409, ['error' => 'Ce creneau est deja reserve']);
     }
 
-    // Get terrain info
     $terrains = supabase_get('terrains?select=*&id=eq.' . $terrain_id);
     if (empty($terrains)) {
         respond(404, ['error' => 'Terrain non trouve']);
     }
     $terrain = $terrains[0];
 
-    // Calculate duration and total
     $start = new DateTime('1970-01-01 ' . $start_time);
     $end = new DateTime('1970-01-01 ' . $end_time);
     $durationHours = ($end->getTimestamp() - $start->getTimestamp()) / 3600;
     $totalAmount = $durationHours * $terrain['price_per_hour'];
 
-    // Generate payment reference
     $paymentRef = 'TM-' . time() . '-' . strtoupper(substr(md5(uniqid()), 0, 6));
 
     $result = supabase_insert('reservations', [
@@ -81,11 +82,11 @@ if ($method === 'POST' && ($sub === '' || $sub === null)) {
 }
 
 // PATCH /api/reservations/:id/cancel
-if ($method === 'PATCH' && isset($parts[0]) && $parts[0] !== '') {
-    $id = $parts[0];
+if ($method === 'PATCH' && $sub !== '' && $id === 'cancel') {
+    $reservation_id = $sub;
     $user = require_auth();
 
-    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&id=eq.' . $id . '&user_id=eq.' . $user['id']);
+    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&id=eq.' . $reservation_id . '&user_id=eq.' . $user['id']);
     if (empty($reservations)) {
         respond(404, ['error' => 'Reservation non trouvee']);
     }
@@ -95,7 +96,7 @@ if ($method === 'PATCH' && isset($parts[0]) && $parts[0] !== '') {
         respond(400, ['error' => "Impossible d'annuler une reservation payee"]);
     }
 
-    supabase_update('reservations?id=eq.' . $id, [
+    supabase_update('reservations?id=eq.' . $reservation_id, [
         'status' => 'cancelled',
         'updated_at' => date('c')
     ]);
@@ -103,4 +104,4 @@ if ($method === 'PATCH' && isset($parts[0]) && $parts[0] !== '') {
     respond(200, ['message' => 'Reservation annulee']);
 }
 
-respond(404, ['error' => 'Route non trouvee']);
+respond(404, ['error' => 'Route reservations non trouvee']);

@@ -3,14 +3,20 @@
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
-$uri = $_SERVER['REQUEST_URI'];
-$uri = strtok($uri, '?');
-$parts = array_filter(explode('/', preg_replace('#^/api/admin#', '', $uri)));
-$sub = $parts[0] ?? '';
-$sub2 = $parts[1] ?? '';
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = rtrim($uri, '/');
+
+$sub = '';
+$id = '';
+if (preg_match('#/api/admin/([^/]+)(?:/([^/]+))?#', $uri, $m)) {
+    $sub = $m[1] ?? '';
+    $id = $m[2] ?? '';
+}
 
 $user = require_auth();
 $user = require_admin($user);
+
+$query = $_GET ?? [];
 
 // GET /api/admin/stats
 if ($method === 'GET' && $sub === 'stats') {
@@ -22,21 +28,19 @@ if ($method === 'GET' && $sub === 'stats') {
 
     $reservations_count = 0;
     $confirmed = 0;
+    $totalRevenue = 0;
+
     if (!empty($terrainIds)) {
         $ids_str = implode(',', $terrainIds);
         $reservations = supabase_get('reservations?select=id,status&terrain_id=in.(' . $ids_str . ')');
         $reservations_count = is_array($reservations) ? count($reservations) : 0;
         $confirmed = is_array($reservations) ? count(array_filter($reservations, fn($r) => $r['status'] === 'confirmed')) : 0;
-    }
 
-    $totalRevenue = 0;
-    if (!empty($terrainIds)) {
-        $ids_str = implode(',', $terrainIds);
         $allRes = supabase_get('reservations?select=id&terrain_id=in.(' . $ids_str . ')');
         $resIds = array_column($allRes, 'id');
         if (!empty($resIds)) {
             $resIds_str = implode(',', $resIds);
-            $payments = supabase_get('payments?select=amount,reservation_id&status=eq.successful&reservation_id=in.(' . $resIds_str . ')');
+            $payments = supabase_get('payments?select=amount&status=eq.successful&reservation_id=in.(' . $resIds_str . ')');
             foreach ($payments as $p) {
                 $totalRevenue += floatval($p['amount']);
             }
@@ -52,13 +56,13 @@ if ($method === 'GET' && $sub === 'stats') {
 }
 
 // GET /api/admin/terrains
-if ($method === 'GET' && $sub === 'terrains') {
+if ($method === 'GET' && $sub === 'terrains' && $id === '') {
     $data = supabase_get('terrains?select=*,terrain_photos(*)&owner_id=eq.' . $user['id'] . '&order=created_at.desc');
     respond(200, $data);
 }
 
 // POST /api/admin/terrains
-if ($method === 'POST' && ($sub === 'terrains' || $sub === '')) {
+if ($method === 'POST' && $sub === 'terrains') {
     $required = ['name', 'city', 'neighborhood', 'address', 'price_per_hour', 'orange_money_number', 'guardian_phone'];
     foreach ($required as $field) {
         if (empty($body[$field])) {
@@ -89,9 +93,9 @@ if ($method === 'POST' && ($sub === 'terrains' || $sub === '')) {
 }
 
 // PUT /api/admin/terrains/:id
-if ($method === 'PUT' && $sub === 'terrains' && $sub2 !== '') {
+if ($method === 'PUT' && $sub === 'terrains' && $id !== '') {
     $body['updated_at'] = date('c');
-    $result = supabase_update('terrains?id=eq.' . $sub2 . '&owner_id=eq.' . $user['id'], $body);
+    $result = supabase_update('terrains?id=eq.' . $id . '&owner_id=eq.' . $user['id'], $body);
     if (!empty($result[0])) {
         respond(200, $result[0]);
     }
@@ -99,8 +103,8 @@ if ($method === 'PUT' && $sub === 'terrains' && $sub2 !== '') {
 }
 
 // DELETE /api/admin/terrains/:id
-if ($method === 'DELETE' && $sub === 'terrains' && $sub2 !== '') {
-    supabase_update('terrains?id=eq.' . $sub2 . '&owner_id=eq.' . $user['id'], ['is_active' => false]);
+if ($method === 'DELETE' && $sub === 'terrains' && $id !== '') {
+    supabase_update('terrains?id=eq.' . $id . '&owner_id=eq.' . $user['id'], ['is_primary' => false]);
     respond(200, ['message' => 'Terrain desactive']);
 }
 
@@ -128,14 +132,13 @@ if ($method === 'POST' && $sub === 'photos') {
 }
 
 // DELETE /api/admin/photos/:id
-if ($method === 'DELETE' && $sub === 'photos' && $sub2 !== '') {
-    supabase_update('terrain_photos?id=eq.' . $sub2, ['deleted' => true]);
+if ($method === 'DELETE' && $sub === 'photos' && $id !== '') {
+    supabase_update('terrain_photos?id=eq.' . $id, ['deleted' => true]);
     respond(200, ['message' => 'Photo supprimee']);
 }
 
 // GET /api/admin/reservations
 if ($method === 'GET' && $sub === 'reservations') {
-    $query = $_GET ?? [];
     $myTerrains = supabase_get('terrains?select=id&owner_id=eq.' . $user['id']);
     $terrainIds = array_column($myTerrains, 'id');
 
@@ -159,7 +162,6 @@ if ($method === 'GET' && $sub === 'reservations') {
 
 // GET /api/admin/payments
 if ($method === 'GET' && $sub === 'payments') {
-    $query = $_GET ?? [];
     $myTerrains = supabase_get('terrains?select=id&owner_id=eq.' . $user['id']);
     $terrainIds = array_column($myTerrains, 'id');
 
@@ -186,4 +188,4 @@ if ($method === 'GET' && $sub === 'payments') {
     respond(200, $data);
 }
 
-respond(404, ['error' => 'Route non trouvee']);
+respond(404, ['error' => 'Route admin non trouvee: ' . $sub]);

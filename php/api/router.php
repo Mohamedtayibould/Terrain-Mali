@@ -2,14 +2,34 @@
 require_once __DIR__ . '/../config.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
-$uri = $_SERVER['REQUEST_URI'];
-$uri = strtok($uri, '?');
-$uri = preg_replace('#^/api#', '', $uri);
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = rtrim($uri, '/');
 
-$parts = array_filter(explode('/', $uri));
-$resource = $parts[1] ?? '';
-$sub = $parts[2] ?? '';
-$third = $parts[3] ?? '';
+// Remove /api prefix
+if (preg_match('#^(/[^/]*?)?/api#', $uri, $m)) {
+    $prefix = $m[1] ?? '';
+    $uri = preg_replace('#^' . preg_quote($prefix) . '/api#', '', $uri);
+}
+
+$uri = rtrim($uri, '/');
+if ($uri === '') $uri = '/';
+
+// Parse resource and sub-resource
+$segments = array_values(array_filter(explode('/', $uri)));
+$resource = $segments[0] ?? '';
+$sub = $segments[1] ?? '';
+$id = $segments[2] ?? '';
+
+// Also check query params as fallback
+if (!$resource && isset($_GET['action'])) {
+    $resource = $_GET['action'];
+}
+if (!$sub && isset($_GET['sub'])) {
+    $sub = $_GET['sub'];
+}
+if (!$id && isset($_GET['id'])) {
+    $id = $_GET['id'];
+}
 
 switch ($resource) {
     case 'health':
@@ -36,5 +56,5 @@ switch ($resource) {
         break;
 
     default:
-        respond(404, ['error' => 'Route non trouvee']);
+        respond(404, ['error' => 'Route non trouvee: ' . $uri]);
 }

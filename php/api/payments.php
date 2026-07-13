@@ -3,10 +3,15 @@
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
-$uri = $_SERVER['REQUEST_URI'];
-$uri = strtok($uri, '?');
-$parts = array_filter(explode('/', preg_replace('#^/api/payments#', '', $uri)));
-$sub = $parts[0] ?? '';
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = rtrim($uri, '/');
+
+$sub = '';
+$id = '';
+if (preg_match('#/api/payments/([^/]+)(?:/([^/]+))?#', $uri, $m)) {
+    $sub = $m[1] ?? '';
+    $id = $m[2] ?? '';
+}
 
 // POST /api/payments/pay
 if ($method === 'POST' && $sub === 'pay') {
@@ -28,7 +33,6 @@ if ($method === 'POST' && $sub === 'pay') {
         respond(400, ['error' => 'Deja paye']);
     }
 
-    // Create payment record
     $payment = supabase_insert('payments', [
         'reservation_id' => $reservation_id,
         'user_id' => $user['id'],
@@ -38,11 +42,6 @@ if ($method === 'POST' && $sub === 'pay') {
         'status' => 'pending'
     ]);
 
-    if (isset($payment['code'])) {
-        respond(500, ['error' => 'Erreur creation paiement']);
-    }
-
-    // Orange Money API call (stub demo)
     respond(200, [
         'payment_url' => '#demo-payment',
         'pay_token' => 'demo-token-' . uniqid(),
@@ -100,16 +99,15 @@ if ($method === 'POST' && $sub === 'webhook') {
 }
 
 // GET /api/payments/receipt/:reservation_id
-if ($method === 'GET' && $sub === 'receipt' && isset($parts[1])) {
+if ($method === 'GET' && $sub === 'receipt' && $id !== '') {
     $user = require_auth();
-    $reservation_id = $parts[1];
 
-    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&id=eq.' . $reservation_id . '&user_id=eq.' . $user['id']);
+    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&id=eq.' . $id . '&user_id=eq.' . $user['id']);
     if (empty($reservations)) {
         respond(404, ['error' => 'Reservation non trouvee']);
     }
 
-    $payments = supabase_get('payments?select=*&reservation_id=eq.' . $reservation_id . '&status=eq.successful');
+    $payments = supabase_get('payments?select=*&reservation_id=eq.' . $id . '&status=eq.successful');
     if (empty($payments)) {
         respond(404, ['error' => 'Paiement non trouve']);
     }
@@ -117,8 +115,8 @@ if ($method === 'GET' && $sub === 'receipt' && isset($parts[1])) {
     respond(200, [
         'reservation' => $reservations[0],
         'payment' => $payments[0],
-        'message' => 'Recu disponible (PDF non supporte sur hébergement gratuit)'
+        'message' => 'Recu disponible'
     ]);
 }
 
-respond(404, ['error' => 'Route non trouvee']);
+respond(404, ['error' => 'Route payments non trouvee']);

@@ -3,11 +3,14 @@
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
-// Parse sub-action from URI
-$uri = $_SERVER['REQUEST_URI'];
-$uri = strtok($uri, '?');
-$parts = array_filter(explode('/', preg_replace('#^/api/auth#', '', $uri)));
-$sub = $parts[0] ?? '';
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = rtrim($uri, '/');
+
+// Extract sub-action after /api/auth/
+$sub = '';
+if (preg_match('#/api/auth/(\w+)#', $uri, $m)) {
+    $sub = $m[1];
+}
 
 // POST /api/auth/register
 if ($method === 'POST' && $sub === 'register') {
@@ -26,13 +29,10 @@ if ($method === 'POST' && $sub === 'register') {
         'data' => ['full_name' => $full_name, 'phone' => $phone, 'role' => 'user']
     ]);
 
-    if (isset($result['message']) && $result['message'] !== 'Signup requires') {
-        respond(201, ['message' => 'Compte cree avec succes', 'user' => $result['user'] ?? null]);
+    if (isset($result['error']) && $result['error']) {
+        respond(400, ['error' => $result['msg'] ?? $result['error_description'] ?? $result['error']]);
     }
-    if (isset($result['error'])) {
-        respond(400, ['error' => $result['message'] ?? $result['error']]);
-    }
-    respond(201, ['message' => 'Compte cree avec succes', 'user' => $result['user'] ?? null]);
+    respond(201, ['message' => 'Compte cree avec succes', 'user' => $result['user'] ?? $result]);
 }
 
 // POST /api/auth/login
@@ -60,7 +60,6 @@ if ($method === 'POST' && ($sub === '' || $sub === 'login')) {
         respond(401, ['error' => 'Identifiants incorrects']);
     }
 
-    // Get profile
     $meta = $user['raw_user_meta_data'] ?? $user['user_metadata'] ?? [];
     $profile = [
         'id' => $user['id'],
@@ -127,4 +126,4 @@ if ($method === 'PUT' && $sub === 'profile') {
     respond(500, ['error' => 'Erreur de mise a jour']);
 }
 
-respond(404, ['error' => 'Route non trouvee']);
+respond(404, ['error' => 'Route auth non trouvee: ' . $sub]);
