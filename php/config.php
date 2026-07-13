@@ -160,14 +160,14 @@ function require_auth() {
 }
 
 function require_admin($user) {
-    $meta = $user['raw_user_meta_data'] ?? $user['user_metadata'] ?? [];
-    $role = $meta['role'] ?? 'user';
+    $meta = $user['raw_user_meta_data'] ?? $user['user_metadata'] ?? $user['app_metadata'] ?? [];
+    $role = $meta['role'] ?? '';
     if ($role !== 'admin') {
-        $profiles = supabase_get('profiles?id=eq.' . $user['id'] . '&select=role');
+        $profiles = supabase_get('profiles?id=eq.' . $user['id'] . '&select=role', true);
         if (!empty($profiles[0]['role']) && $profiles[0]['role'] === 'admin') {
             return $user;
         }
-        respond(403, ['error' => 'Acces reserve aux administrateurs']);
+        respond(403, ['error' => 'Acces reserve aux administrateurs. Role actuel: ' . ($role ?: 'user')]);
     }
     return $user;
 }

@@ -68,7 +68,7 @@ if ($method === 'POST' && ($sub === '' || $sub === 'login')) {
         'role' => $meta['role'] ?? 'user'
     ];
 
-    $profiles = supabase_get('profiles?id=eq.' . $user['id']);
+    $profiles = supabase_get('profiles?id=eq.' . $user['id'], true);
     if (!empty($profiles[0])) {
         $profile = $profiles[0];
     }
@@ -90,7 +90,7 @@ if ($method === 'GET' && $sub === 'profile') {
     $user = require_auth();
 
     $profile = null;
-    $profiles = supabase_get('profiles?id=eq.' . $user['id']);
+    $profiles = supabase_get('profiles?id=eq.' . $user['id'], true);
     if (!empty($profiles[0])) {
         $profile = $profiles[0];
     }
