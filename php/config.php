@@ -145,14 +145,38 @@ function get_bearer_token() {
     return null;
 }
 
+function decode_jwt($token) {
+    $parts = explode('.', $token);
+    if (count($parts) !== 3) return null;
+    $payload = base64_decode(strtr($parts[1], '-_', '+/'));
+    return json_decode($payload, true);
+}
+
 function get_user_from_token($token) {
-    $url = SUPABASE_URL . '/auth/v1/user';
-    $headers = [
-        'apikey: ' . SUPABASE_ANON_KEY,
-        'Authorization: Bearer ' . $token
+    $claims = decode_jwt($token);
+    if (!$claims || empty($claims['sub'])) return null;
+
+    $user = [
+        'id' => $claims['sub'],
+        'email' => $claims['email'] ?? '',
+        'raw_user_meta_data' => $claims['user_metadata'] ?? [],
+        'user_metadata' => $claims['user_metadata'] ?? [],
+        'app_metadata' => $claims['app_metadata'] ?? []
     ];
-    $result = http_request($url, 'GET', $headers);
-    return json_decode($result, true);
+
+    $meta = $user['raw_user_meta_data'];
+    if (!empty($meta['role'])) {
+        $user['_role_from_meta'] = $meta['role'];
+        return $user;
+    }
+
+    $profiles = supabase_get('profiles?id=eq.' . $user['id'] . '&select=role', true);
+    if (!empty($profiles[0]['role'])) {
+        $user['raw_user_meta_data']['role'] = $profiles[0]['role'];
+        $user['_role_from_db'] = $profiles[0]['role'];
+    }
+
+    return $user;
 }
 
 function respond($code, $data) {
