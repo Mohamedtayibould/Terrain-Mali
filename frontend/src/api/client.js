@@ -12,6 +12,10 @@ api.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const url = config.url;
+  if (API_BASE.includes('index.php') && url.startsWith('/')) {
+    config.url = '?route=' + encodeURIComponent(url.substring(1));
+  }
   return config;
 });
 

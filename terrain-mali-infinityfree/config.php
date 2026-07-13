@@ -92,17 +92,6 @@ function supabase_update($endpoint, $data) {
     return json_decode($result, true);
 }
 
-function supabase_delete($endpoint) {
-    $url = SUPABASE_URL . '/rest/v1/' . $endpoint;
-    $headers = [
-        'apikey: ' . SUPABASE_ANON_KEY,
-        'Authorization: Bearer ' . SUPABASE_SERVICE_KEY,
-        'Content-Type: application/json'
-    ];
-    $result = http_request($url, 'DELETE', $headers);
-    return json_decode($result, true);
-}
-
 function supabase_rpc($function_name, $params) {
     $url = SUPABASE_URL . '/rest/v1/rpc/' . $function_name;
     $headers = [

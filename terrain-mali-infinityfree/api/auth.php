@@ -1,15 +1,18 @@
 <?php
-// auth.php - called from index.php with PATH_INFO
+// auth.php
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
-$path = $_SERVER['PATH_INFO'] ?? '';
-$path = '/' . ltrim($path, '/');
-$parts = array_values(array_filter(explode('/', $path)));
-// parts[0]=auth, parts[1]=sub, parts[2]=extra
-$sub = $parts[1] ?? '';
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = rtrim($uri, '/');
 
-// POST /api/index.php/auth/register
+// Extract sub-action after /api/auth/
+$sub = '';
+if (preg_match('#/api/auth/(\w+)#', $uri, $m)) {
+    $sub = $m[1];
+}
+
+// POST /api/auth/register
 if ($method === 'POST' && $sub === 'register') {
     $email = $body['email'] ?? '';
     $password = $body['password'] ?? '';
@@ -32,7 +35,7 @@ if ($method === 'POST' && $sub === 'register') {
     respond(201, ['message' => 'Compte cree avec succes', 'user' => $result['user'] ?? $result]);
 }
 
-// POST /api/index.php/auth or /api/index.php/auth/login
+// POST /api/auth/login
 if ($method === 'POST' && ($sub === '' || $sub === 'login')) {
     $email = $body['email'] ?? '';
     $password = $body['password'] ?? '';
@@ -82,7 +85,7 @@ if ($method === 'POST' && ($sub === '' || $sub === 'login')) {
     ]);
 }
 
-// GET /api/index.php/auth/profile
+// GET /api/auth/profile
 if ($method === 'GET' && $sub === 'profile') {
     $user = require_auth();
 
@@ -106,7 +109,7 @@ if ($method === 'GET' && $sub === 'profile') {
     respond(200, $profile);
 }
 
-// PUT /api/index.php/auth/profile
+// PUT /api/auth/profile
 if ($method === 'PUT' && $sub === 'profile') {
     $user = require_auth();
     $full_name = $body['full_name'] ?? null;
@@ -123,4 +126,4 @@ if ($method === 'PUT' && $sub === 'profile') {
     respond(500, ['error' => 'Erreur de mise a jour']);
 }
 
-respond(404, ['error' => 'Route auth non trouvee']);
+respond(404, ['error' => 'Route auth non trouvee: ' . $sub]);

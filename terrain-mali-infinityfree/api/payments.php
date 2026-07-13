@@ -1,15 +1,19 @@
 <?php
-// payments.php - uses PATH_INFO
+// payments.php
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
-$path = $_SERVER['PATH_INFO'] ?? '';
-$path = '/' . ltrim($path, '/');
-$parts = array_values(array_filter(explode('/', $path)));
-$sub = $parts[1] ?? '';
-$extra = $parts[2] ?? '';
+$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+$uri = rtrim($uri, '/');
 
-// POST /api/index.php/payments/pay
+$sub = '';
+$id = '';
+if (preg_match('#/api/payments/([^/]+)(?:/([^/]+))?#', $uri, $m)) {
+    $sub = $m[1] ?? '';
+    $id = $m[2] ?? '';
+}
+
+// POST /api/payments/pay
 if ($method === 'POST' && $sub === 'pay') {
     $user = require_auth();
     $reservation_id = $body['reservation_id'] ?? '';
@@ -19,7 +23,7 @@ if ($method === 'POST' && $sub === 'pay') {
         respond(400, ['error' => 'reservation_id et phone_number requis']);
     }
 
-    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&id=eq.' . $reservation_id . '&user_id=eq.' . $user['id'], true);
+    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&id=eq.' . $reservation_id . '&user_id=eq.' . $user['id']);
     if (empty($reservations)) {
         respond(404, ['error' => 'Reservation non trouvee']);
     }
@@ -47,19 +51,19 @@ if ($method === 'POST' && $sub === 'pay') {
     ]);
 }
 
-// POST /api/index.php/payments/webhook
+// POST /api/payments/webhook
 if ($method === 'POST' && $sub === 'webhook') {
     $order_id = $body['order_id'] ?? '';
     $status = $body['status'] ?? '';
     $txnid = $body['txnid'] ?? '';
 
-    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&payment_reference=eq.' . $order_id, true);
+    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&payment_reference=eq.' . $order_id);
     if (empty($reservations)) {
         respond(404, ['error' => 'Reservation non trouvee']);
     }
     $reservation = $reservations[0];
 
-    $payments = supabase_get('payments?select=*&reservation_id=eq.' . $reservation['id'] . '&order=created_at.desc&limit=1', true);
+    $payments = supabase_get('payments?select=*&reservation_id=eq.' . $reservation['id'] . '&order=created_at.desc&limit=1');
     if (empty($payments)) {
         respond(404, ['error' => 'Paiement non trouve']);
     }
@@ -94,17 +98,20 @@ if ($method === 'POST' && $sub === 'webhook') {
     respond(200, ['status' => 'received']);
 }
 
-// GET /api/index.php/payments/receipt/:id
-if ($method === 'GET' && $sub === 'receipt' && $extra !== '') {
+// GET /api/payments/receipt/:reservation_id
+if ($method === 'GET' && $sub === 'receipt' && $id !== '') {
     $user = require_auth();
-    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&id=eq.' . $extra . '&user_id=eq.' . $user['id'], true);
+
+    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&id=eq.' . $id . '&user_id=eq.' . $user['id']);
     if (empty($reservations)) {
         respond(404, ['error' => 'Reservation non trouvee']);
     }
-    $payments = supabase_get('payments?select=*&reservation_id=eq.' . $extra . '&status=eq.successful', true);
+
+    $payments = supabase_get('payments?select=*&reservation_id=eq.' . $id . '&status=eq.successful');
     if (empty($payments)) {
         respond(404, ['error' => 'Paiement non trouve']);
     }
+
     respond(200, [
         'reservation' => $reservations[0],
         'payment' => $payments[0],

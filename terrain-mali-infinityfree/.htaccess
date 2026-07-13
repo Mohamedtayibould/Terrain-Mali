@@ -1,0 +1,8 @@
+RewriteEngine On
+RewriteBase /
+
+# Allow direct PHP files in api/
+RewriteRule ^api/([a-zA-Z0-9_]+\.php)$ api/$1 [L]
+
+# Route everything else to router
+RewriteRule ^api/(.+)$ api/router.php [QSA,L]

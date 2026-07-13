@@ -37,11 +37,11 @@ export default function Footer() {
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <FiPhone />
-                <span>+223 XX XX XX XX</span>
+                <span>0693603562</span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <FiMail />
-                <span>contact@terrainmali.com</span>
+                <span>tayibould.mohamed.23@ump.ac.ma</span>
               </div>
             </div>
           </div>
