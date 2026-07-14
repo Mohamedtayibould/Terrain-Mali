@@ -48,27 +48,17 @@ export function AuthProvider({ children }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.user) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
-        if (profiles) {
-          setProfile(profiles);
-          setLoading(false);
-          return profiles;
-        }
         const meta = session.user.user_metadata || {};
-        const fallbackProfile = {
+        const p = {
           id: session.user.id,
           email: session.user.email,
           full_name: meta.full_name || '',
           phone: meta.phone || '',
           role: meta.role || 'user'
         };
-        setProfile(fallbackProfile);
+        setProfile(p);
         setLoading(false);
-        return fallbackProfile;
+        return p;
       }
     } catch (err) {
       console.error('Profile fetch error:', err);
