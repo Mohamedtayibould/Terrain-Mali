@@ -1,26 +1,22 @@
 <?php
-// reservations.php
+// reservations.php - uses PATH_INFO
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
 
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$uri = rtrim($uri, '/');
+$path = $_SERVER['PATH_INFO'] ?? '';
+$path = '/' . ltrim($path, '/');
+$parts = array_values(array_filter(explode('/', $path)));
+$sub = $parts[1] ?? '';
+$extra = $parts[2] ?? '';
 
-$sub = '';
-$id = '';
-if (preg_match('#/api/reservations/([^/]+)(?:/([^/]+))?#', $uri, $m)) {
-    $sub = $m[1] ?? '';
-    $id = $m[2] ?? '';
-}
-
-// GET /api/reservations/my
+// GET /api/index.php/reservations/my
 if ($method === 'GET' && $sub === 'my') {
     $user = require_auth();
-    $data = supabase_get('reservations?select=*,terrain:terrains(*,terrain_photos(*))&user_id=eq.' . $user['id'] . '&order=reservation_date.desc');
+    $data = supabase_get('reservations?select=*,terrain:terrains(*,terrain_photos(*))&user_id=eq.' . $user['id'] . '&order=reservation_date.desc', true);
     respond(200, $data);
 }
 
-// POST /api/reservations
+// POST /api/index.php/reservations
 if ($method === 'POST' && $sub === '') {
     $user = require_auth();
     $terrain_id = $body['terrain_id'] ?? '';
@@ -81,12 +77,12 @@ if ($method === 'POST' && $sub === '') {
     ]);
 }
 
-// PATCH /api/reservations/:id/cancel
-if ($method === 'PATCH' && $sub !== '' && $id === 'cancel') {
+// PATCH /api/index.php/reservations/:id/cancel
+if ($method === 'PATCH' && $extra === 'cancel') {
     $reservation_id = $sub;
     $user = require_auth();
 
-    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&id=eq.' . $reservation_id . '&user_id=eq.' . $user['id']);
+    $reservations = supabase_get('reservations?select=*,terrain:terrains(*)&id=eq.' . $reservation_id . '&user_id=eq.' . $user['id'], true);
     if (empty($reservations)) {
         respond(404, ['error' => 'Reservation non trouvee']);
     }

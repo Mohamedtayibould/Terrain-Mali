@@ -14,8 +14,9 @@ export default function AdminLogin() {
     setLoading(true);
     try {
       const result = await login(email, password);
-      if (result.profile?.role !== 'admin') {
-        toast.error('Acces reserve aux administrateurs');
+      const role = result.profile?.role || result.user?.user_metadata?.role || result.user?.raw_user_meta_data?.role;
+      if (role !== 'admin') {
+        toast.error('Acces reserve aux administrateurs. Role: ' + (role || 'user'));
         return;
       }
       toast.success('Bienvenue, Admin !');

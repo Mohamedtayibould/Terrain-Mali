@@ -46,15 +46,35 @@ export function AuthProvider({ children }) {
 
   const fetchProfile = async () => {
     try {
-      const { data } = await api.get('/auth/profile');
-      setProfile(data);
-      return data;
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+        if (profiles) {
+          setProfile(profiles);
+          setLoading(false);
+          return profiles;
+        }
+        const meta = session.user.user_metadata || {};
+        const fallbackProfile = {
+          id: session.user.id,
+          email: session.user.email,
+          full_name: meta.full_name || '',
+          phone: meta.phone || '',
+          role: meta.role || 'user'
+        };
+        setProfile(fallbackProfile);
+        setLoading(false);
+        return fallbackProfile;
+      }
     } catch (err) {
       console.error('Profile fetch error:', err);
-      return null;
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
+    return null;
   };
 
   const login = async (email, password) => {
@@ -70,7 +90,7 @@ export function AuthProvider({ children }) {
     setUser(data.user);
 
     const profileData = await fetchProfile();
-    return { ...data, profile: profileData };
+    return { ...data, user: data.user, profile: profileData };
   };
 
   const register = async (email, password, full_name, phone) => {

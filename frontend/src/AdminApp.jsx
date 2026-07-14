@@ -8,7 +8,8 @@ import TerrainForm from './pages/admin/TerrainForm';
 function AdminGuard({ children }) {
   const { user, profile, loading } = useAuth();
   if (loading) return <div className="flex justify-center items-center h-screen bg-gray-900"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-600"></div></div>;
-  if (!user || profile?.role !== 'admin') return <AdminLogin />;
+  const isAdmin = profile?.role === 'admin' || user?.user_metadata?.role === 'admin' || user?.raw_user_meta_data?.role === 'admin';
+  if (!user || !isAdmin) return <AdminLogin />;
   return children;
 }
 

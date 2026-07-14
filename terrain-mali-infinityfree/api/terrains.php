@@ -1,27 +1,17 @@
 <?php
-// terrains.php
+// terrains.php - uses PATH_INFO
 $method = $_SERVER['REQUEST_METHOD'];
 $body = json_decode(file_get_contents('php://input'), true) ?: [];
-
-$uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$uri = rtrim($uri, '/');
-
-// Extract parts after /api/terrains
-$sub = '';
-$id = '';
-if (preg_match('#/api/terrains/([^/]+)(?:/([^/]+))?#', $uri, $m)) {
-    $sub = $m[1] ?? '';
-    $id = $m[2] ?? '';
-    // If sub is "cities", handle it
-    if ($sub === 'cities') {
-        $sub = 'cities';
-        $id = '';
-    }
-}
-
 $query = $_GET ?? [];
 
-// GET /api/terrains/cities
+$path = $_SERVER['PATH_INFO'] ?? '';
+$path = '/' . ltrim($path, '/');
+$parts = array_values(array_filter(explode('/', $path)));
+// parts[0]=terrains, parts[1]=sub/id, parts[2]=extra
+$sub = $parts[1] ?? '';
+$extra = $parts[2] ?? '';
+
+// GET /api/index.php/terrains/cities
 if ($method === 'GET' && $sub === 'cities') {
     $data = supabase_get('terrains?select=city&is_active=eq.true');
     $cities = array_unique(array_column($data, 'city'));
@@ -29,8 +19,8 @@ if ($method === 'GET' && $sub === 'cities') {
     respond(200, array_values($cities));
 }
 
-// GET /api/terrains/:id/slots
-if ($method === 'GET' && $id === 'slots' && $sub !== '' && $sub !== 'cities') {
+// GET /api/index.php/terrains/:id/slots
+if ($method === 'GET' && $extra === 'slots' && $sub !== '') {
     $terrain_id = $sub;
     $date = $query['date'] ?? '';
     if (!$date) respond(400, ['error' => 'Date requise']);
@@ -41,14 +31,14 @@ if ($method === 'GET' && $id === 'slots' && $sub !== '' && $sub !== 'cities') {
     respond(200, $result);
 }
 
-// GET /api/terrains/:id (single terrain)
-if ($method === 'GET' && $sub !== '' && $sub !== 'cities' && $id === '') {
+// GET /api/index.php/terrains/:id
+if ($method === 'GET' && $sub !== '' && $sub !== 'cities' && $extra === '') {
     $data = supabase_get('terrains?select=*,terrain_photos(*)&id=eq.' . $sub);
     if (empty($data)) respond(404, ['error' => 'Terrain non trouve']);
     respond(200, $data[0]);
 }
 
-// GET /api/terrains (list all)
+// GET /api/index.php/terrains (list)
 if ($method === 'GET' && $sub === '') {
     $page = intval($query['page'] ?? 1);
     $limit = intval($query['limit'] ?? 12);
@@ -64,9 +54,7 @@ if ($method === 'GET' && $sub === '') {
         $filters .= '&or=(name.ilike.*' . urlencode($search) . '*,neighborhood.ilike.*' . urlencode($search) . '*,address.ilike.*' . urlencode($search) . '*,city.ilike.*' . urlencode($search) . '*)';
     }
 
-    $endpoint = 'terrains?select=*,terrain_photos(*)&' . $filters . '&order=created_at.desc&offset=' . $offset . '&limit=' . $limit;
-    $data = supabase_get($endpoint);
-
+    $data = supabase_get('terrains?select=*,terrain_photos(*)&' . $filters . '&order=created_at.desc&offset=' . $offset . '&limit=' . $limit);
     $count_data = supabase_get('terrains?select=id&' . $filters);
     $total = is_array($count_data) ? count($count_data) : 0;
 
