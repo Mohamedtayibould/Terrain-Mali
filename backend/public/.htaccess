@@ -1,0 +1,22 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # Protect .env
+    RewriteRule ^\.env - [F,L]
+
+    # Handle API routes - pass to Laravel
+    RewriteCond %{REQUEST_URI} ^/api/
+    RewriteRule ^api/(.*)$ index.php/api/$1 [L,QSA]
+
+    # Serve existing static files
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Route everything else to Laravel
+    RewriteRule ^ index.php [L,QSA]
+</IfModule>

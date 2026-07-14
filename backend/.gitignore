@@ -1,5 +1,6 @@
-node_modules
+/node_modules/
+/vendor/
+/storage/
+/bootstrap/cache/
 .env
-dist
-.DS_Store
-*.log
+*.zip
