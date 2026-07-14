@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import api from '../api/client';
+import { fetchTerrainById } from '../api/supabaseDirect';
 import PhotoGallery from '../components/PhotoGallery';
 import { FiMapPin, FiClock, FiPhone, FiDollarSign, FiNavigation, FiArrowLeft, FiLoader } from 'react-icons/fi';
 
@@ -10,19 +10,8 @@ export default function TerrainDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchTerrain();
+    fetchTerrainById(id).then(setTerrain).catch(console.error).finally(() => setLoading(false));
   }, [id]);
-
-  const fetchTerrain = async () => {
-    try {
-      const { data } = await api.get(`/terrains/${id}`);
-      setTerrain(data);
-    } catch (err) {
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   if (loading) {
     return (

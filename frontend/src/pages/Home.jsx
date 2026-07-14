@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import api from '../api/client';
+import { fetchTerrains, fetchCities } from '../api/supabaseDirect';
 import TerrainCard from '../components/TerrainCard';
 import SearchBar from '../components/SearchBar';
 import { FiMapPin, FiLoader } from 'react-icons/fi';
@@ -14,38 +14,19 @@ export default function Home() {
   const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    fetchCities();
+    fetchCities().then(c => setCities(c)).catch(console.error);
   }, []);
 
   useEffect(() => {
-    fetchTerrains();
-  }, [search, selectedCity, page]);
-
-  const fetchCities = async () => {
-    try {
-      const { data } = await api.get('/terrains/cities');
-      setCities(data);
-    } catch (err) {
-      console.error('Error fetching cities:', err);
-    }
-  };
-
-  const fetchTerrains = async () => {
     setLoading(true);
-    try {
-      const params = { page, limit: 12 };
-      if (search) params.search = search;
-      if (selectedCity) params.city = selectedCity;
-
-      const { data } = await api.get('/terrains', { params });
-      setTerrains(data.terrains);
-      setTotalPages(data.pagination.totalPages);
-    } catch (err) {
-      console.error('Error fetching terrains:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchTerrains({ page, limit: 12, city: selectedCity, search })
+      .then(({ terrains: t, pagination }) => {
+        setTerrains(t);
+        setTotalPages(pagination.totalPages);
+      })
+      .catch(err => console.error('Error fetching terrains:', err))
+      .finally(() => setLoading(false));
+  }, [search, selectedCity, page]);
 
   const cityIcons = {
     'Bamako': '🏙️', 'Sikasso': '🌿', 'Mopti': '🌊',
@@ -55,7 +36,6 @@ export default function Home() {
 
   return (
     <div>
-      {/* Hero */}
       <section className="bg-gradient-to-br from-orange-600 to-orange-800 text-white">
         <div className="max-w-7xl mx-auto px-4 py-16 md:py-24 text-center">
           <h1 className="text-3xl md:text-5xl font-bold mb-4">
@@ -67,7 +47,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* City Chips */}
       {cities.length > 0 && (
         <section className="max-w-7xl mx-auto px-4 pt-6">
           <div className="flex items-center gap-2 mb-2">
@@ -102,12 +81,10 @@ export default function Home() {
         </section>
       )}
 
-      {/* Search */}
       <section className="max-w-7xl mx-auto px-4 py-4">
         <SearchBar value={search} onChange={(v) => { setSearch(v); setPage(1); }} />
       </section>
 
-      {/* Terrains Grid */}
       <section className="max-w-7xl mx-auto px-4 pb-8">
         {selectedCity && (
           <div className="mb-4">
