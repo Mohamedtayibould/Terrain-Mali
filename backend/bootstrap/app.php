@@ -1,16 +1,23 @@
 <?php
 
-define('LARAVEL_START', microtime(true));
+if (!defined('LARAVEL_START')) {
+    define('LARAVEL_START', microtime(true));
+}
 
 require __DIR__.'/../vendor/autoload.php';
 
-$app = Illuminate\Foundation\Application::createInstance(
+$app = new Illuminate\Foundation\Application(
     $_ENV['APP_BASE_PATH'] ?? dirname(__DIR__)
 );
 
 $app->singleton(
     Illuminate\Contracts\Http\Kernel::class,
     App\Http\Kernel::class
+);
+
+$app->singleton(
+    Illuminate\Contracts\Console\Kernel::class,
+    App\Console\Kernel::class
 );
 
 $app->singleton(
